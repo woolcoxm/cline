@@ -93,6 +93,13 @@ export interface ApiHandlerOptions {
 	sapAiCoreTokenUrl?: string
 	sapAiCoreBaseUrl?: string
 	onRetryAttempt?: (attempt: number, maxRetries: number, delay: number, error: any) => void
+	// Rate limiting and cost management
+	rateLimitEnabled?: boolean
+	rateLimitRequestsPerMinute?: number
+	rateLimitDelayBetweenRequests?: number // milliseconds
+	rateLimitMaxCostPerSession?: number // USD
+	rateLimitMaxCostPerDay?: number // USD
+	rateLimitWarningThreshold?: number // percentage (0-100)
 	// Plan mode configurations
 	planModeApiModelId?: string
 	planModeThinkingBudgetTokens?: number

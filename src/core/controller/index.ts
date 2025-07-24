@@ -11,6 +11,8 @@ import { downloadTask } from "@integrations/misc/export-markdown"
 import WorkspaceTracker from "@integrations/workspace/WorkspaceTracker"
 import { ClineAccountService } from "@services/account/ClineAccountService"
 import { McpHub } from "@services/mcp/McpHub"
+import { RateLimitService, DEFAULT_RATE_LIMIT_SETTINGS } from "@services/rate-limiting"
+import { CostAlertService } from "@services/notifications/CostAlertService"
 import { ApiProvider, ModelInfo } from "@shared/api"
 import { ChatContent } from "@shared/ChatContent"
 import { ChatSettings, Mode, StoredChatSettings } from "@shared/ChatSettings"
@@ -53,6 +55,8 @@ export class Controller {
 	mcpHub: McpHub
 	accountService: ClineAccountService
 	authService: AuthService
+	rateLimitService: RateLimitService
+	costAlertService: CostAlertService
 	get latestAnnouncementId(): string {
 		return this.context.extension?.packageJSON?.version?.split(".").slice(0, 2).join(".") ?? ""
 	}
@@ -77,6 +81,11 @@ export class Controller {
 		this.accountService = ClineAccountService.getInstance()
 		this.authService = AuthService.getInstance(context)
 		this.authService.restoreRefreshTokenAndRetrieveAuthInfo()
+		
+		// Initialize rate limiting service
+		this.rateLimitService = new RateLimitService(DEFAULT_RATE_LIMIT_SETTINGS)
+		this.costAlertService = CostAlertService.getInstance()
+		this.setupRateLimitingEventHandlers()
 
 		// Clean up legacy checkpoints
 		cleanupLegacyCheckpoints(this.context.globalStorageUri.fsPath, this.outputChannel).catch((error) => {
@@ -192,6 +201,7 @@ export class Controller {
 			defaultTerminalProfile ?? "default",
 			enableCheckpointsSetting ?? true,
 			await getCwd(getDesktopDir()),
+			this.rateLimitService,
 			task,
 			images,
 			files,
@@ -852,6 +862,69 @@ export class Controller {
 	// }
 
 	// secrets
+
+	// Rate limiting event handlers
+	private setupRateLimitingEventHandlers() {
+		this.rateLimitService.on("rateLimitExceeded", (data) => {
+			console.log("Rate limit exceeded:", data)
+			this.costAlertService.showRateLimitExceeded(data)
+			this.postMessageToWebview({
+				type: "rateLimitWarning",
+				data: {
+					type: "rateLimitExceeded",
+					...data,
+				},
+			})
+		})
+
+		this.rateLimitService.on("costLimitExceeded", (data) => {
+			console.log("Cost limit exceeded:", data)
+			this.costAlertService.showCostLimitExceeded(data)
+			this.postMessageToWebview({
+				type: "costLimitWarning",
+				data: {
+					type: "costLimitExceeded",
+					...data,
+				},
+			})
+		})
+
+		this.rateLimitService.on("costWarning", (data) => {
+			console.log("Cost warning:", data)
+			this.costAlertService.showCostWarningThreshold(data)
+			this.postMessageToWebview({
+				type: "costWarning",
+				data: {
+					type: "costWarning",
+					...data,
+				},
+			})
+		})
+
+		this.rateLimitService.on("requestRecorded", (requestInfo) => {
+			// Send rate limit status updates to the UI
+			const status = this.rateLimitService.getStatus()
+			this.postMessageToWebview({
+				type: "rateLimitStatus",
+				status,
+			})
+		})
+	}
+
+	// Update rate limiting settings from configuration
+	async updateRateLimitingSettings() {
+		const apiConfiguration = await getAllExtensionState(this.context)?.apiConfiguration
+		if (apiConfiguration) {
+			this.rateLimitService.updateSettings({
+				enabled: apiConfiguration.rateLimitEnabled ?? false,
+				requestsPerMinute: apiConfiguration.rateLimitRequestsPerMinute ?? 50,
+				delayBetweenRequests: apiConfiguration.rateLimitDelayBetweenRequests ?? 1000,
+				maxCostPerSession: apiConfiguration.rateLimitMaxCostPerSession ?? 5.0,
+				maxCostPerDay: apiConfiguration.rateLimitMaxCostPerDay ?? 20.0,
+				warningThreshold: apiConfiguration.rateLimitWarningThreshold ?? 80,
+			})
+		}
+	}
 
 	// dev
 }

@@ -84,3 +84,29 @@ Cline is a VS Code extension that provides an autonomous AI coding assistant. Th
 - **React**: Webview UI framework
 - **Playwright**: E2E testing
 - **Tree-sitter**: Code parsing and analysis
+
+## Rate Limiting & Cost Management
+
+Cline includes comprehensive rate limiting and cost management features to help users control API usage and prevent unexpected costs:
+
+### Features
+- **Request Rate Limiting**: Configurable requests per minute limits
+- **Cost Budgeting**: Session and daily spending limits
+- **Real-time Monitoring**: Live cost and usage tracking in the UI
+- **Smart Alerts**: Warnings at configurable thresholds
+- **Provider-agnostic**: Works with all supported AI providers
+
+### Implementation
+- **RateLimitService** (`src/services/rate-limiting/`): Core rate limiting logic
+- **CostAlertService** (`src/services/notifications/`): User notifications
+- **RateLimitedApiHandler** (`src/api/`): API wrapper with rate limiting
+- **Rate Limiting Settings**: Available in Settings > Rate Limiting tab
+
+### Configuration
+Rate limiting settings are stored in the extension's global state and include:
+- `rateLimitEnabled`: Master enable/disable toggle
+- `rateLimitRequestsPerMinute`: Maximum API requests per minute
+- `rateLimitDelayBetweenRequests`: Minimum delay between requests (ms)
+- `rateLimitMaxCostPerSession`: Maximum cost per coding session ($)
+- `rateLimitMaxCostPerDay`: Maximum cost per day ($)
+- `rateLimitWarningThreshold`: Warning threshold percentage (0-100)

@@ -22,8 +22,11 @@ export async function updateSettings(controller: Controller, request: UpdateSett
 
 			if (controller.task) {
 				const currentMode = await controller.getCurrentMode()
-				controller.task.api = buildApiHandler({ ...apiConfiguration, taskId: controller.task.taskId }, currentMode)
+				controller.task.api = buildApiHandler({ ...apiConfiguration, taskId: controller.task.taskId }, currentMode, controller.rateLimitService)
 			}
+			
+			// Update rate limiting settings
+			await controller.updateRateLimitingSettings()
 		}
 
 		// Update telemetry setting

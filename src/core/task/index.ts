@@ -77,6 +77,7 @@ import { getGlobalState } from "@core/storage/state"
 import { processFilesIntoText } from "@integrations/misc/extract-text"
 import WorkspaceTracker from "@integrations/workspace/WorkspaceTracker"
 import { McpHub } from "@services/mcp/McpHub"
+import { RateLimitService } from "@services/rate-limiting"
 import { convertClineMessageToProto } from "@shared/proto-conversions/cline-message"
 import { isClaude4ModelFamily, isGemini2dot5ModelFamily } from "@utils/model-utils"
 import { isInTestMode } from "../../services/test/TestMode"
@@ -153,6 +154,7 @@ export class Task {
 		defaultTerminalProfile: string,
 		enableCheckpointsSetting: boolean,
 		cwd: string,
+		rateLimitService?: RateLimitService,
 		task?: string,
 		images?: string[],
 		files?: string[],
@@ -277,7 +279,7 @@ export class Task {
 		}
 
 		// Now that taskId is initialized, we can build the API handler
-		this.api = buildApiHandler(effectiveApiConfiguration, chatSettings.mode)
+		this.api = buildApiHandler(effectiveApiConfiguration, chatSettings.mode, rateLimitService)
 
 		// Set taskId on browserSession for telemetry tracking
 		this.browserSession.setTaskId(this.taskId)

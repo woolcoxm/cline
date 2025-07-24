@@ -31,6 +31,8 @@ import { MoonshotHandler } from "./providers/moonshot"
 import { GroqHandler } from "./providers/groq"
 import { Mode } from "../shared/ChatSettings"
 import { HuggingFaceHandler } from "./providers/huggingface"
+import { RateLimitedApiHandler } from "./RateLimitedApiHandler"
+import { RateLimitService } from "@services/rate-limiting"
 
 export interface ApiHandler {
 	createMessage(systemPrompt: string, messages: Anthropic.Messages.MessageParam[]): ApiStream
@@ -282,7 +284,7 @@ function createHandlerForProvider(
 	}
 }
 
-export function buildApiHandler(configuration: ApiConfiguration, mode: Mode): ApiHandler {
+export function buildApiHandler(configuration: ApiConfiguration, mode: Mode, rateLimitService?: RateLimitService): ApiHandler {
 	const { planModeApiProvider, actModeApiProvider, ...options } = configuration
 
 	const apiProvider = mode === "plan" ? planModeApiProvider : actModeApiProvider
@@ -310,5 +312,12 @@ export function buildApiHandler(configuration: ApiConfiguration, mode: Mode): Ap
 		console.error("buildApiHandler error:", error)
 	}
 
-	return createHandlerForProvider(apiProvider, options, mode)
+	const handler = createHandlerForProvider(apiProvider, options, mode)
+	
+	// Wrap with rate limiting if enabled and service is provided
+	if (rateLimitService && configuration.rateLimitEnabled) {
+		return new RateLimitedApiHandler(handler, rateLimitService)
+	}
+	
+	return handler
 }
